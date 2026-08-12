@@ -221,7 +221,7 @@ def get_video_transcript(video_path: Path, speech_model: str = "universal") -> s
         speaker_labels=True,
         punctuate=True,
         format_text=True,
-        speech_models=s["universal-3-5-pro"],
+        speech_models=["universal-3-5-pro"],
     )
 
     try:
