@@ -87,6 +87,7 @@ services:
       - clips:/app/clips
       - ./backend/fonts:/app/fonts
       - ./backend/transitions:/app/transitions
+      - ./prompts:/app/prompts
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
@@ -188,6 +189,7 @@ services:
       - clips:/app/clips
       - ./backend/fonts:/app/fonts
       - ./backend/transitions:/app/transitions
+      - ./prompts:/app/prompts
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
