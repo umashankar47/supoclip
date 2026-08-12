@@ -178,7 +178,7 @@ class TranscriptAnalysis(BaseModel):
 
 
 # Enhanced system prompt with virality scoring and B-roll detection
-transcript_analysis_system_prompt = """You are an expert transcript analyst for short-form video editing.
+_DEFAULT_TRANSCRIPT_SYSTEM_PROMPT = """You are an expert transcript analyst for short-form video editing.
 
 Your job is extraction and ranking, not creative rewriting. You must stay fully grounded in the transcript and choose the best clip candidates that already exist in the source material.
 
@@ -315,6 +315,38 @@ _transcript_agent_signature: Optional[tuple[str | None, ...]] = None
 
 SUPPORTED_LLM_PROVIDERS = {"google", "google-gla", "openai", "anthropic", "ollama"}
 
+def _load_transcript_system_prompt() -> str:
+    """Load the transcript-analysis system prompt.
+
+    Reads from TRANSCRIPT_SYSTEM_PROMPT_PATH when set, falling back to the
+    built-in default if the env var is unset or the file can't be read.
+    """
+    runtime_config = get_config()
+    prompt_path = runtime_config.transcript_system_prompt_path
+    if not prompt_path:
+        return _DEFAULT_TRANSCRIPT_SYSTEM_PROMPT
+
+    try:
+        path = Path(prompt_path)
+        text = path.read_text(encoding="utf-8").strip()
+        if not text:
+            logger.warning(
+                "TRANSCRIPT_SYSTEM_PROMPT_PATH file is empty (%s); using default prompt",
+                prompt_path,
+            )
+            return _DEFAULT_TRANSCRIPT_SYSTEM_PROMPT
+        logger.info("Loaded transcript system prompt from %s", prompt_path)
+        return text
+    except OSError as exc:
+        logger.warning(
+            "Failed to read TRANSCRIPT_SYSTEM_PROMPT_PATH=%s (%s); using default prompt",
+            prompt_path,
+            exc,
+        )
+        return _DEFAULT_TRANSCRIPT_SYSTEM_PROMPT
+
+    transcript_analysis_system_prompt = _load_transcript_system_prompt()
+
 
 def _split_llm_name(model_name: str) -> tuple[str, str | None]:
     if ":" not in model_name:
@@ -398,6 +430,7 @@ def get_transcript_agent() -> Agent[None, TranscriptAnalysis]:
         runtime_config.anthropic_api_key,
         runtime_config.ollama_base_url,
         runtime_config.ollama_api_key,
+        runtime_config.transcript_system_prompt_path,
     )
     if _transcript_agent is None or _transcript_agent_signature != signature:
         apply_settings_to_process_env(runtime_config.as_runtime_settings())
@@ -408,7 +441,8 @@ def get_transcript_agent() -> Agent[None, TranscriptAnalysis]:
         _transcript_agent = Agent[None, TranscriptAnalysis](
             model=_build_transcript_model(runtime_config),
             output_type=TranscriptAnalysis,
-            system_prompt=transcript_analysis_system_prompt,
+            #system_prompt=transcript_analysis_system_prompt,
+            system_prompt=_load_transcript_system_prompt(),
             # Some local Ollama/OpenAI-compatible endpoints can return formatted
             # prose before settling on schema-valid JSON. Keep retries limited
             # while still allowing enough repair attempts for local models.

@@ -21,6 +21,10 @@ class Config:
 
         self.whisper_model = os.getenv("WHISPER_MODEL", "base")
         self.llm = self._get_runtime_setting("LLM") or self._infer_default_llm()
+        # In Config.__init__, near self.llm / self.assembly_ai_api_key:
+        self.transcript_system_prompt_path = self._get_optional_env(
+                                              "TRANSCRIPT_SYSTEM_PROMPT_PATH"
+                                          ) 
         self.assembly_ai_api_key = self._get_runtime_setting("ASSEMBLY_AI_API_KEY")
         self.assembly_ai_http_timeout_seconds = int(
             os.getenv("ASSEMBLY_AI_HTTP_TIMEOUT_SECONDS", "900")
