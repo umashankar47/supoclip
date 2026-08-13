@@ -50,7 +50,7 @@ interface FontOption {
 
 type OutputFormat = "vertical" | "vertical_pan" | "vertical_split" | "original";
 
-const MAX_VIDEO_UPLOAD_BYTES = 1_000_000_000;
+const MAX_VIDEO_UPLOAD_BYTES = 5_000_000_000;
 
 // Only surface the font search box once the list is long enough to need it.
 const FONT_SEARCH_THRESHOLD = 8;
@@ -124,7 +124,7 @@ async function requestUploadAuthorization(): Promise<UploadAuthorization> {
 
 async function uploadVideoFile(file: File): Promise<string> {
   if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
-    throw new Error("Uploaded file is too large. Please upload a video under 1 GB.");
+    throw new Error("Uploaded file is too large. Please upload a video under 5 GB.");
   }
 
   const uploadAuthorization = await requestUploadAuthorization();

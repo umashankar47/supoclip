@@ -109,4 +109,4 @@ Return exactly this JSON shape (types shown are illustrative, not literal values
 
 Omit "broll_opportunities" entirely unless B-roll was explicitly requested for this task.
 
-Return 2-5 segments. Never pad the list to hit a quota — fewer strong segments beat more mediocre ones. Every segment must pass all four rules above before you include it.
+The number of segments should scale with how much genuinely strong content exists in the transcript — a short, sparse video may only support 2-3 clips, while a long, content-dense video may support many more. Quality over quantity: never pad the count to hit a target, and never omit a strong segment just to stay under an arbitrary number.
