@@ -88,6 +88,7 @@ services:
       - ./backend/fonts:/app/fonts
       - ./backend/transitions:/app/transitions
       - ./prompts:/app/prompts
+      - ./cookies/youtube.txt:/app/cookies/youtube.txt
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
@@ -192,6 +193,7 @@ services:
       - ./backend/fonts:/app/fonts
       - ./backend/transitions:/app/transitions
       - ./prompts:/app/prompts
+      - ./cookies/youtube.txt:/app/cookies/youtube.txt
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1

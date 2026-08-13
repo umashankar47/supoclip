@@ -631,10 +631,12 @@ export default function TaskPage() {
     const base = clip.hook_title
       ? slugifyFilename(clip.hook_title)
       : clip.filename.replace(/\.mp4$/i, "");
+      console.log("Clip hook:", clip.hook_title);
+      console.log("Download name:", base);
     return `${base}.mp4`;
     };
 
-  const handleExportClip = async (clipId: string, getDownloadName: string) => {
+  const handleExportClip = async (clipId: string) => {
     if (!session?.user?.id || !task?.id) return;
 
     const response = await fetch(`${taskApiUrl}/${task.id}/clips/${clipId}/export?preset=${exportPreset}`, {
@@ -651,7 +653,7 @@ export default function TaskPage() {
     const link = document.createElement("a");
     link.href = blobUrl;
     // link.download = `${fallbackFilename.replace(/\.mp4$/i, "")}_${exportPreset}.mp4`;/
-    link.download = `${getDownloadName.replace(/\.mp4$/i, "")}_${exportPreset}.mp4`;
+    link.download = getDownloadName(clips);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -671,7 +673,7 @@ export default function TaskPage() {
       link.remove();
       return;
     }
-    void handleExportClip(clip.id, clip.filename);
+    void handleExportClip(clip.id);
   };
 
   const handleCopyShareLink = async () => {

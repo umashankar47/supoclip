@@ -910,7 +910,7 @@ async def export_clip(
             preset_name,
         )
 
-        download_name = f"{Path(clip['filename']).stem}_{preset_name}.mp4"
+        download_name = f"{Path(clip['hook_title']).stem}_{preset_name}.mp4"
         return FileResponse(
             path=str(output_path), media_type="video/mp4", filename=download_name
         )
