@@ -131,6 +131,8 @@ services:
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3107}
       - DISCORD_FEEDBACK_WEBHOOK_URL=${DISCORD_FEEDBACK_WEBHOOK_URL}
       - DISCORD_SALES_WEBHOOK_URL=${DISCORD_SALES_WEBHOOK_URL}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-1024}
+      - TRANSCRIPT_SYSTEM_PROMPT_PATH=${TRANSCRIPT_SYSTEM_PROMPT_PATH:-}
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -231,6 +233,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - "SES_FROM_EMAIL=${SES_FROM_EMAIL:-SupoClip <onboarding@example.com>}"
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3107}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-1024}
+      - TRANSCRIPT_SYSTEM_PROMPT_PATH=${TRANSCRIPT_SYSTEM_PROMPT_PATH:-}
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
