@@ -805,6 +805,7 @@ def run_ffmpeg_command(command: List[str], timeout: int = 900) -> subprocess.Com
         command,
         capture_output=True,
         text=True,
+        errors="replace", 
         timeout=timeout,
     )
     if result.returncode != 0:
