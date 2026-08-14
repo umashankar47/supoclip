@@ -620,23 +620,8 @@ export default function TaskPage() {
       setDeletingFontName(null);
     }
   };
-  const slugifyFilename = (name: string) =>
-    name
-      .trim()
-      .replace(/[\\/:*?"<>|]+/g, "")   // strip filesystem-unsafe chars
-      .replace(/\s+/g, "_")
-      .slice(0, 80);
 
-  const getDownloadName = (clip: Clip) => {
-    const base = clip.hook_title
-      ? slugifyFilename(clip.hook_title)
-      : clip.filename.replace(/\.mp4$/i, "");
-      console.log("Clip hook:", clip.hook_title);
-      console.log("Download name:", base);
-    return `${base}.mp4`;
-    };
-
-  const handleExportClip = async (clipId: string) => {
+  const handleExportClip = async (clipId: string, fallbackFilename: string) => {
     if (!session?.user?.id || !task?.id) return;
 
     const response = await fetch(`${taskApiUrl}/${task.id}/clips/${clipId}/export?preset=${exportPreset}`, {
@@ -652,28 +637,24 @@ export default function TaskPage() {
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = blobUrl;
-    // link.download = `${fallbackFilename.replace(/\.mp4$/i, "")}_${exportPreset}.mp4`;/
-    link.download = getDownloadName(clips);
+    link.download = `${fallbackFilename.replace(/\.mp4$/i, "")}_${exportPreset}.mp4`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
   };
 
-
-//DOwnload the clip
   const handleDownloadClip = (clip: Clip) => {
     if (exportPreset === "original") {
       const link = document.createElement("a");
       link.href = getClipUrl(clip.video_url);
-      // link.download = clip.filename;
-      link.download = getDownloadName(clip);
+      link.download = clip.filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
       return;
     }
-    void handleExportClip(clip.id);
+    void handleExportClip(clip.id, clip.filename);
   };
 
   const handleCopyShareLink = async () => {
@@ -1036,8 +1017,7 @@ export default function TaskPage() {
                             <TranscriptPreview text={clip.text} clipTitle={`Clip ${clip.clip_order}`} />
                           )}
                           <Button size="sm" variant="outline" asChild>
-                            {/* <a href={getClipUrl(clip.video_url)} download={clip.filename}> */}
-                            <a href={getClipUrl(clip.video_url)} download={getDownloadName(clip)}>
+                            <a href={getClipUrl(clip.video_url)} download={clip.filename}>
                               <Download className="w-4 h-4" />
                               Download
                             </a>
