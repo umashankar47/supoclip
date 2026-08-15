@@ -1,259 +1,119 @@
-# Fuck OpusClip.
 
-... because good video clips shouldn't come with ugly watermarks or platform lock-in.
+# SupoClip — Fork [For Other Details go to main repo ]
 
-<p align="center">
-  <a href="https://www.supoclip.com">
-    <img src="assets/banner.png" alt="SupoClip Banner" width="100%" />
-  </a>
-</p>
 
-SupoClip gives you AI-powered video clipping capabilities in an open-source package you can run yourself, customize, and inspect. Use the hosted version when you want the convenience of managed infrastructure, or self-host when you want full control.
 
-> For the hosted version, sign up for the waitlist here: [SupoClip Hosted](https://www.supoclip.com)
+---
 
-## Why SupoClip Exists
+# SupoClip — Updates Log
+ 
+This document tracks the configuration and code changes made to this SupoClip deployment, in the order they were made. For each item: what changed, why, which file(s), and whether a rebuild was required.
+ 
+---
+ 
+## 1. Custom transcript-analysis system prompt (file-based, env-configurable)
+ 
+**What changed:** The LLM system prompt used for clip/segment selection can now be loaded from an external `.txt` file instead of only the hardcoded string in `ai.py`.
+ 
+**Why:** Lets the prompt be tuned/iterated without touching Python source, and makes prompt changes independently trackable.
+ 
+**Files:**
+- `backend/src/config.py` — added `transcript_system_prompt_path` (reads `TRANSCRIPT_SYSTEM_PROMPT_PATH`)
+- `backend/src/ai.py` — added `_load_transcript_system_prompt()`; falls back to the built-in default prompt if the env var is unset or the file can't be read; loader moved into `get_transcript_agent()` for hot-reload on config change
+- `docker-compose.yml` — mounted a `./prompts` volume into `backend` and `worker` services
+- `.env` — added `TRANSCRIPT_SYSTEM_PROMPT_PATH=/app/prompts/transcript_system_prompt.txt`
+**Rebuild:** Yes (Python source + dependency wiring change).
+ 
+---
+ 
+## 2. Engineered upgrade to the transcript-analysis prompt itself
+ 
+**What changed:** Replaced the flat, repetitive original prompt with a restructured version: non-negotiable rules surfaced first, a "cold viewer test" for segment quality, calibrated virality-scoring anchors (fixes score-clustering in the 15–19 band), an explicit pre-output self-check for timestamp/duration validity, and a literal JSON schema skeleton (improves reliability on smaller/local models).
+ 
+**Why:** Original prompt produced inconsistent virality scores and occasional invalid timestamp/duration output; new version tightens both without changing the underlying JSON schema (fully backward-compatible with existing Pydantic models).
+ 
+**File:** `prompts/transcript_system_prompt.txt` (loaded via item #1's mechanism)
+ 
+**Rebuild:** No — picked up via the file-loader from item #1; requires only a worker restart (or is hot-reloaded per-request depending on how item #1 was finished).
+ 
+---
 
-### The OpusClip Problem
-
-OpusClip is undeniably powerful. It's an AI video clipping tool that can turn long-form content into viral short clips with features like:
-
-- AI-powered clip generation from long videos
-- Automated captions with 97%+ accuracy
-- Virality scoring to predict viral potential
-- Multi-language support (20+ languages)
-- Brand templates and customization
-
-**But here's the catch:**
-
-- **Usage limits**: Processing minutes are capped by plan
-- **Watermarks**: Some exports can include platform branding
-- **Processing limits**: Even paid plans have strict minute limits
-- **Vendor lock-in**: Your content and workflows are tied to their platform
-
-### The SupoClip Solution
-
-SupoClip provides the same core functionality with more control:
-
-→ ✅ **Self-Hostable** - Run it on your own infrastructure
-
-→ ✅ **No Watermarks** - Your content stays yours
-
-→ ✅ **Open Source** - Full transparency, community-driven development
-
-→ ✅ **Hosted Option** - Use SupoClip without managing servers
-
-→ ✅ **Unlimited Usage** - Process as many videos as your hardware can handle
-
-→ ✅ **Customizable** - Modify and extend the codebase to fit your needs
-
-## Quick Start
-
-### Prerequisites
-
-- Docker and Docker Compose
-- An AssemblyAI API key (for transcription) - [Get one here](https://www.assemblyai.com/)
-- An LLM provider for AI analysis - OpenAI, Google, Anthropic, or Ollama
-
-### 1. Clone and Configure
-
-```bash
-git clone https://github.com/FujiwaraChoki/supoclip.git
-cd supoclip
+ 
+## 3. AssemblyAI API compatibility fixes
+ 
+**What changed:** Two breaking changes on AssemblyAI's side were patched:
+ 
+1. **Enum validation error** (`universal-3-pro` not a valid `speech_model` enum member) — normalized via `_assemblyai_speech_model_value()` in `video_utils.py`, mapping requested model names to valid SDK enum values.
+2. **Deprecated parameter rejected by the API itself** — AssemblyAI now requires the plural `speech_models` (list) instead of singular `speech_model` (string). Fixed in `get_video_transcript()`:
+```python
+   config_obj = aai.TranscriptionConfig(
+       speaker_labels=True,
+       punctuate=True,
+       format_text=True,
+       speech_models=[speech_model_value],   # was: speech_model=speech_model_value
+   )
 ```
-
-Create a `.env` file in the root directory:
-
-```env
-# Required: Video transcription
-ASSEMBLY_AI_API_KEY=your_assemblyai_api_key
-
-# Required: Choose ONE LLM provider and set its API key
-# Option A: Google Gemini (recommended - fast & cost-effective)
-LLM=google-gla:gemini-3-flash-preview
-GOOGLE_API_KEY=your_google_api_key
-
-# Option B: OpenAI GPT-5.2 (best reasoning)
-# LLM=openai:gpt-5.2
-# OPENAI_API_KEY=your_openai_api_key
-
-# Option C: Anthropic Claude
-# LLM=anthropic:claude-4-sonnet
-# ANTHROPIC_API_KEY=your_anthropic_api_key
-
-# Option D: Ollama (local/self-hosted)
-# LLM=ollama:gpt-oss:20b
-# OLLAMA_BASE_URL=  # Optional; defaults to localhost locally, host.docker.internal in Docker
-# OLLAMA_API_KEY=your_ollama_api_key  # Optional (Ollama Cloud)
-
-# Optional: Auth secret (change in production)
-BETTER_AUTH_SECRET=change_this_in_production
-
-# Optional: DataFast analytics
-# Track your deployed domain in DataFast
-# NEXT_PUBLIC_DATAFAST_WEBSITE_ID=dfid_xxxxx
-# NEXT_PUBLIC_DATAFAST_DOMAIN=your-domain.com
-# NEXT_PUBLIC_DATAFAST_ALLOW_LOCALHOST=false
-
-# Optional: Amazon SES for waitlist confirmation emails
-# AWS_REGION=us-east-1
-# AWS_ACCESS_KEY_ID=your_aws_access_key_id
-# AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
-# SES_FROM_EMAIL="SupoClip <onboarding@example.com>"
-
-# Optional: YouTube metadata provider
-# `yt_dlp` preserves the existing metadata behavior
-# `youtube_data_api` uses the official API first, then falls back to yt-dlp
-# YOUTUBE_METADATA_PROVIDER=yt_dlp
-# YOUTUBE_DATA_API_KEY=your_youtube_data_api_key
+ 
+**File:** `backend/src/video_utils.py`
+ 
+**Also updated:** `FAST_MODE_TRANSCRIPT_MODEL` default pointed at AssemblyAI's current flagship model (`universal-3-5-pro`) rather than the deprecated generic fallback.
+ 
+**Rebuild:** Yes (Python source change; also required an `assemblyai` SDK version bump in `backend/pyproject.toml`).
+ 
+---
+ 
+---
+ 
+## 4. Adaptive / variable clip count (was hardcoded to 2–5)
+ 
+**What changed:** Clip count no longer hardcoded to a fixed "2-5 segments" — it now scales with source video length/content density, with a configurable safety ceiling.
+ 
+**Details:**
+- `build_transcript_analysis_prompt()` now computes a target range from transcript duration instead of a fixed number.
+- The persistent system prompt's hardcoded "Find 2-5 compelling segments" line was reworded to instruct content-driven scaling instead of a fixed count.
+- `video_service.py`'s truncation logic (previously only applied in `fast` mode via `FAST_MODE_MAX_CLIPS`) now also enforces `MAX_CLIPS` as a hard backstop in `balanced`/`quality` modes (previously `MAX_CLIPS` was set in config but never actually enforced anywhere).
+**Files:** `backend/src/ai.py`, `backend/src/services/video_service.py`
+ 
+**Config:**
 ```
+DEFAULT_PROCESSING_MODE=balanced   # or quality — avoids the old fast-mode 4-clip cap
+FAST_MODE_MAX_CLIPS=15             # raised from default of 4, only applies in fast mode
+MAX_CLIPS=20                       # now actually enforced as the hard ceiling
+```
+ 
+**Rebuild:** Yes (Python source change).
+ 
+---
+ 
+## 5. Upload size limit raised (was hardcoded to 1 GB on both frontend and backend)
+ 
+**What changed:** The 1 GB upload cap was found to be two independent hardcoded constants — one client-side (fails fast before upload starts), one server-side (the real enforcement, returns HTTP 413). Both needed updating; fixing only the frontend still resulted in a backend 413.
+ 
+**Files:**
+- `frontend/src/components/home-app.tsx` — `MAX_VIDEO_UPLOAD_BYTES` now reads from `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB` instead of being hardcoded
+- `backend/src/api/routes/media.py` — upload route's size check now reads from `runtime_config.max_upload_bytes`
+- `backend/src/config.py` — added `max_upload_bytes` (reads `MAX_UPLOAD_MB`)
+**Config:**
+```
+NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB=4096
+MAX_UPLOAD_MB=4096
+```
+ 
+**Note:** This constant was a UX/resource-usage guardrail chosen by the original author, not derived from any external infrastructure limit (no proxy, CDN, or AssemblyAI-side constraint was found to require 1 GB specifically).
+ 
+**Rebuild:** Yes for both services (`frontend` — `NEXT_PUBLIC_*` build-time bake-in; `backend` — Python source change).
+ 
+---
+## 6. Export file name is now set to the hook title.
 
-### 2. Start the Services
 
+
+## Rebuild summary
+ 
 ```bash
+docker-compose build --no-cache backend worker frontend
 docker-compose up -d
+docker-compose logs -f worker
 ```
 
-This starts:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000 (docs at /docs)
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
 
-### 3. Wait for Initialization
-
-First-time startup takes a few minutes. Check progress with:
-
-```bash
-docker-compose logs -f
-```
-
-Wait until you see health checks passing for all services.
-
-### 4. Access the App
-
-Open http://localhost:3000 in your browser, create an account, and start clipping!
-
-If you enable DataFast, also verify that:
-- `/js/script.js` loads from your own app domain
-- `/api/events` requests are proxied through your app domain
-- custom goals appear after successful sign-up, sign-in, task creation, billing, feedback, or waitlist actions
-
-### Troubleshooting
-
-**Backend fails to start with API key error:**
-- Make sure you've set the correct LLM provider AND its corresponding API key in `.env`
-- Default is `google-gla:gemini-3-flash-preview` which requires `GOOGLE_API_KEY`
-- If using `openai:gpt-5.2`, you MUST set `OPENAI_API_KEY`
-- If using `ollama:*`, run Ollama and optionally set `OLLAMA_BASE_URL`
-  (`http://localhost:11434/v1` for local backend runs, `http://host.docker.internal:11434/v1` for Docker)
-- Rebuild after changing `.env`: `docker-compose up -d --build`
-
-**Videos stay queued / never process:**
-- Check worker logs: `docker-compose logs -f worker`
-- Ensure Redis is healthy: `docker-compose logs redis`
-- Verify API keys are correct
-
-**YouTube titles or duration lookup is failing:**
-- `YOUTUBE_METADATA_PROVIDER=yt_dlp` keeps the old metadata path
-- `YOUTUBE_METADATA_PROVIDER=youtube_data_api` requires YouTube Data API v3 enabled in Google Cloud
-- Prefer `YOUTUBE_DATA_API_KEY`; if it is unset, the backend will try `GOOGLE_API_KEY`
-- The backend will automatically fall back to the other metadata provider if the primary one fails
-- `videos.list` costs 1 quota unit per request
-
-**Performance tuning (default is fast mode):**
-- `DEFAULT_PROCESSING_MODE=fast|balanced|quality`
-- `FAST_MODE_MAX_CLIPS=4` to cap clip count in fast mode
-- `FAST_MODE_TRANSCRIPT_MODEL=nano` for fastest transcript model
-- View aggregate metrics: `GET /tasks/metrics/performance`
-
-**Prisma errors on Windows:**
-- Run `docker-compose down -v` to clear volumes
-- Run `docker-compose up -d --build` to rebuild
-
-**Frontend shows database errors:**
-- Wait for PostgreSQL to fully initialize (check logs)
-- The database is automatically created on first run
-
-**Font picker is empty / cannot select or upload fonts:**
-- Add fonts to `backend/fonts/` – see [backend/fonts/README.md](backend/fonts/README.md) for TikTok Sans and custom fonts
-- Ensure `BACKEND_AUTH_SECRET` is set in `.env` when using the hosted/monetized setup
-- Font upload is Pro-only when monetization is enabled; self-hosted users can upload freely
-
-**Subscription emails are not sending:**
-- Set `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `SES_FROM_EMAIL` in `.env`
-- `SES_FROM_EMAIL` must be a verified identity/domain in Amazon SES
-- The backend sends the “thank you for subscribing” email on `checkout.session.completed`
-- The backend sends the “sorry to see you go” email on `customer.subscription.deleted`
-
-## Testing
-
-SupoClip now has a layered automated test setup:
-
-- `pytest` for backend unit and integration tests
-- `Vitest` and Testing Library for frontend route and component coverage
-- `Playwright` for a small seeded browser smoke suite
-
-Repo-level entrypoints:
-
-```bash
-make test
-make test-backend
-make test-frontend
-make test-e2e
-make test-ci
-```
-
-App-level entrypoints:
-
-```bash
-cd backend && uv sync --all-groups && .venv/bin/pytest
-cd frontend && npm install && npm run test:coverage
-cd frontend && npm run test:e2e
-```
-
-Local test runs expect PostgreSQL and Redis to be available. The easiest path is to start the stack with `docker-compose up -d`, then run the commands above. CI runs the same layers in GitHub Actions with Postgres and Redis service containers.
-
-## Documentation
-
-Detailed documentation now lives in [`docs/`](docs/README.md).
-
-Start with:
-
-- [`docs/setup.md`](docs/setup.md)
-- [`docs/configuration.md`](docs/configuration.md)
-- [`docs/app-guide.md`](docs/app-guide.md)
-- [`docs/architecture.md`](docs/architecture.md)
-- [`docs/api-reference.md`](docs/api-reference.md)
-- [`docs/development.md`](docs/development.md)
-- [`docs/troubleshooting.md`](docs/troubleshooting.md)
-
-## Hosted Billing Emails
-
-When you run SupoClip with monetization enabled (`SELF_HOST=false`), subscription lifecycle emails are sent through Amazon SES by the backend:
-
-- `checkout.session.completed` sends the thank-you-for-subscribing email
-- `customer.subscription.deleted` sends the sorry-to-see-you-go email
-
-Required env vars for this flow:
-
-- `AWS_REGION`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `SES_FROM_EMAIL`
-- `BACKEND_AUTH_SECRET`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_ID`
-
-### Local Development (Without Docker)
-
-See [CLAUDE.md](CLAUDE.md) for detailed development instructions.
-
-## License
-
-SupoClip is released under the AGPL-3.0 License. See [LICENSE](LICENSE) for details.
-
-Contributions are accepted under the terms in [CONTRIBUTING.md](CONTRIBUTING.md),
-including a license grant that allows the project owner to sublicense and
-relicense contributed code.

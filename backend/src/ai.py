@@ -307,8 +307,7 @@ SCORING AND OUTPUT RULES:
 - virality_reasoning and reasoning should cite what is actually present in the chosen span
 - summary and key_topics must also stay grounded in the transcript and should not add outside interpretation
 
-Find 2-5 compelling segments that would work well as standalone clips. Quality over quantity: choose fewer stronger segments over filling a quota. Every selected segment must be accurate, self-contained, have proper time ranges, and score high on virality metrics."""
-
+The number of segments should scale with how much genuinely strong content exists in the transcript — a short, sparse video may only support 2-3 clips, while a long, content-dense video may support many more. Quality over quantity: never pad the count to hit a target, and never omit a strong segment just to stay under an arbitrary number."""
 # Lazy-loaded agent to avoid import-time failures when API keys aren't set
 _transcript_agent: Optional[Agent[None, TranscriptAnalysis]] = None
 _transcript_agent_signature: Optional[tuple[str | None, ...]] = None
@@ -334,6 +333,7 @@ def _load_transcript_system_prompt() -> str:
                 "TRANSCRIPT_SYSTEM_PROMPT_PATH file is empty (%s); using default prompt",
                 prompt_path,
             )
+
             return _DEFAULT_TRANSCRIPT_SYSTEM_PROMPT
         logger.info("Loaded transcript system prompt from %s", prompt_path)
         return text
@@ -469,6 +469,19 @@ def build_transcript_analysis_prompt(
             "Use these as hints only. They should influence ranking, but every final segment "
             "must still be a coherent contiguous transcript range."
         )
+    # Estimate a sensible clip-count ceiling from transcript density rather than
+    # a fixed number — longer/denser source video can support more clips.
+    transcript_spans = _parse_transcript_spans(transcript)
+    if transcript_spans:
+        video_duration_minutes = max(1, transcript_spans[-1]["end"] // 60)
+    else:
+        video_duration_minutes = 5  # fallback for unparsable transcripts
+
+    # Roughly one strong clip per 3-4 minutes of source content, floor 2, cap 20
+    # (cap protects against runaway output on very long videos / weak local models).
+    min_segments = 2
+    max_segments = max(min_segments, min(20, video_duration_minutes // 3))
+
 
     return f"""Analyze this video transcript and identify the most engaging segments for short-form content.
 
@@ -483,7 +496,8 @@ Follow this workflow:
 4. For each chosen segment, use the earliest timestamp in the selected range as start_time and the latest timestamp in the selected range as end_time.{broll_instruction}
 
 Selection target:
-- Choose 2-5 segments total.
+- Choose {min_segments}-{max_segments} segments total, scaled to how much genuinely strong content exists.
+- Do not pad to hit the upper bound — return fewer if the source material doesn't support more.
 - Most selected clips should be 25-50 seconds.
 - Only choose a 15-24 second clip when it already contains a full setup and payoff.
 - If a strong moment is shorter than 25 seconds, first try expanding to nearby contiguous transcript lines that add useful context.

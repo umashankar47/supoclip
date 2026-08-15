@@ -657,7 +657,9 @@ async def get_clip_file(
         return FileResponse(
             path=str(clip_path),
             media_type="video/mp4",
-            filename=clip["filename"],
+            # filename=clip["filename"],
+            # filename=f"clip["hook_title"],
+            filename=f"{clip['hook_title']}.mp4",
             content_disposition_type="inline",
             headers={"Cache-Control": "private, no-store"},
         )
@@ -910,7 +912,8 @@ async def export_clip(
             preset_name,
         )
 
-        download_name = f"{Path(clip['filename']).stem}_{preset_name}.mp4"
+        # download_name = f"{Path(clip['filename']).stem}_{preset_name}.mp4"
+        download_name = f"{Path(clip['hook_title']).stem}_{preset_name}.mp4"
         return FileResponse(
             path=str(output_path), media_type="video/mp4", filename=download_name
         )

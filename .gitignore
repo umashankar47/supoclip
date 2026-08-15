@@ -9,6 +9,10 @@ temp/
 .env
 *.m4a
 frontend/e2e/.seed.json
+youtube.txt
+cookies.txt
+*.cookies.txt
+
 
 # local demo / scratch artifacts (not for the repo)
 backend/demo_clips/

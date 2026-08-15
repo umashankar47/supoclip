@@ -95,6 +95,7 @@ def _build_info_options() -> Dict[str, Any]:
             "Connection": "keep-alive",
         },
         "nocheckcertificate": True,
+        "cookiefile": "/app/cookies/youtube.txt",
     }
     return ydl_opts
 

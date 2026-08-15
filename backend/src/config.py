@@ -58,6 +58,8 @@ class Config:
         self.max_clips = int(os.getenv("MAX_CLIPS", "10"))
         self.clip_duration = int(os.getenv("CLIP_DURATION", "30"))  # seconds
 
+        self.max_upload_bytes = int(os.getenv("MAX_UPLOAD_MB", "1024")) * 1024 * 1024
+
         self.temp_dir = os.getenv("TEMP_DIR", "temp")
 
         # Redis configuration

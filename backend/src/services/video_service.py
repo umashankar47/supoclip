@@ -511,8 +511,14 @@ class VideoService:
                         }
                     )
 
+            # if processing_mode == "fast":
+            #     segments_json = segments_json[: runtime_config.fast_mode_max_clips]
+            
+            # video_service.py, replace the fast-mode-only truncation with:
             if processing_mode == "fast":
                 segments_json = segments_json[: runtime_config.fast_mode_max_clips]
+            else:
+                segments_json = segments_json[: runtime_config.max_clips]
 
             if not segments_json:
                 logger.warning(
