@@ -1,6 +1,8 @@
 
 # SupoClip — Fork [For Other Details go to main repo ]
 
+
+
 ---
 
 # SupoClip — Updates Log
@@ -102,7 +104,10 @@ MAX_UPLOAD_MB=4096
 **Rebuild:** Yes for both services (`frontend` — `NEXT_PUBLIC_*` build-time bake-in; `backend` — Python source change).
  
 ---
- 
+## 6. Export file name is now set to the hook title.
+
+
+
 ## Rebuild summary
  
 ```bash
